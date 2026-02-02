@@ -22,9 +22,16 @@ function setup() {
 }
 
 function draw() {
-  // Draw the video feed to the smaller buffer for processing
-  smallVideo.image(video, 0, 0, smallVideo.width, smallVideo.height);
+  analyzeVideo();
+  boostSaturation(smallVideo, SATURATION_BOOST);
+  image(smallVideo, 0, 0, width, height);
+  filter(BLUR, 5);
+  tint(255, 255, 255, 5);
+  //   displayValues();
+}
 
+function analyzeVideo() {
+  smallVideo.image(video, 0, 0, smallVideo.width, smallVideo.height);
   smallVideo.loadPixels();
 
   let totalLuminosity = 0;
@@ -45,10 +52,7 @@ function draw() {
           let g = smallVideo.pixels[index + 1];
           let b = smallVideo.pixels[index + 2];
 
-          // Calculate brightness as average of RGB values
           let lum = (r + g + b) / 3;
-
-          // Calculate saturation using p5's built-in saturation() function
           let sat = saturation(color(r, g, b));
 
           totalLuminosity += lum;
@@ -62,7 +66,6 @@ function draw() {
     }
   }
 
-  // Calculate averages
   if (pixelCount > 0) {
     luminosity = totalLuminosity / pixelCount;
     avgSaturation = totalSaturation / pixelCount;
@@ -71,41 +74,34 @@ function draw() {
     let avgB = totalB / pixelCount;
     avgColor = color(avgR, avgG, avgB);
   }
+}
 
-  boostSaturation(smallVideo, SATURATION_BOOST);
-  image(smallVideo, 0, 0, width, height);
-  filter(BLUR, 5);
-  tint(255, 255, 255, 5);
-
-  //   // Display the values as text
-  //   fill(255);
-  //   stroke(0);
-  //   strokeWeight(2);
-  //   textSize(24);
-  //   textAlign(LEFT, TOP);
-
-  //   let textY = 20;
-  //   text(`Luminosity: ${luminosity.toFixed(3)}`, 20, textY);
-  //   text(`Saturation: ${avgSaturation.toFixed(3)}`, 20, textY + 40);
-
-  //   // Display average color
-  //   if (avgColor) {
-  //     let avgR = red(avgColor);
-  //     let avgG = green(avgColor);
-  //     let avgB = blue(avgColor);
-  //     text(`Avg Color R: ${avgR.toFixed(0)} G: ${avgG.toFixed(0)} B: ${avgB.toFixed(0)}`, 20, textY + 80);
-
-  //     // Draw a color swatch
-  //     fill(avgColor);
-  //     noStroke();
-  //     rect(20, textY + 110, 100, 50);
-
-  //     // Draw border around swatch
-  //     noFill();
-  //     stroke(0);
-  //     strokeWeight(2);
-  //     rect(20, textY + 110, 100, 50);
-  //   }
+function displayValues() {
+  // Display the values as text
+  fill(255);
+  stroke(0);
+  strokeWeight(2);
+  textSize(24);
+  textAlign(LEFT, TOP);
+  let textY = 20;
+  text(`Luminosity: ${luminosity.toFixed(3)}`, 20, textY);
+  text(`Saturation: ${avgSaturation.toFixed(3)}`, 20, textY + 40);
+  // Display average color
+  if (avgColor) {
+    let avgR = red(avgColor);
+    let avgG = green(avgColor);
+    let avgB = blue(avgColor);
+    text(`Avg Color R: ${avgR.toFixed(0)} G: ${avgG.toFixed(0)} B: ${avgB.toFixed(0)}`, 20, textY + 80);
+    // Draw a color swatch
+    fill(avgColor);
+    noStroke();
+    rect(20, textY + 110, 100, 50);
+    // Draw border around swatch
+    noFill();
+    stroke(0);
+    strokeWeight(2);
+    rect(20, textY + 110, 100, 50);
+  }
 }
 
 function boostSaturation(videoBuffer, saturationBoost) {
