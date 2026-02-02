@@ -3,6 +3,8 @@ let smallVideo;
 let luminosity = 0;
 let avgSaturation = 0;
 let avgColor;
+let mic;
+let fft;
 
 const SATURATION_BOOST = 60;
 
@@ -12,21 +14,42 @@ function setup() {
 
   frameRate(30);
 
-  // Create video capture from webcam
   video = createCapture(VIDEO);
   video.size(1280, 720);
   video.hide();
 
-  // Create a smaller graphics buffer for processing (e.g., 160x90 = 64x smaller)
+  // 4-channel RGBA buffer (default for createGraphics)
   smallVideo = createGraphics(160, 90);
+
+  // Microphone input (browser will ask for permission)
+  mic = new p5.AudioIn();
+  mic.start();
+
+  // FFT: bass → red, mids → green, treble → blue
+  fft = new p5.FFT(0.2, 1024); // smoothing, bins
+  fft.setInput(mic);
+
+  // Resume audio context on first user interaction (needed for mic/FFT)
+  userStartAudio();
 }
 
 function draw() {
-  analyzeVideo();
+  // Spectrum in 3 sections: bass → R, mids → G, treble → B (getEnergy returns 0–255)
+  fft.analyze();
+  let bass = fft.getEnergy("bass");
+  let mids = fft.getEnergy("mid");
+  let highs = fft.getEnergy("treble");
+  let keyColor = color(bass, mids, highs);
+
+  // Copy video into small buffer first (4 channels: RGBA)
+  tint(150, 150, 150, 255);
+  smallVideo.image(video, 0, 0, smallVideo.width, smallVideo.height);
   boostSaturation(smallVideo, SATURATION_BOOST);
+  colorKey(smallVideo, keyColor, 30);
   image(smallVideo, 0, 0, width, height);
   filter(BLUR, 5);
-  tint(255, 255, 255, 5);
+  //   tint(255, 255, 255, 255);
+
   //   displayValues();
 }
 
@@ -74,6 +97,27 @@ function analyzeVideo() {
     let avgB = totalB / pixelCount;
     avgColor = color(avgR, avgG, avgB);
   }
+}
+
+function colorKey(videoBuffer, keyColor, threshold) {
+  // Set alpha to 0 if pixel color is far enough from keyColor; otherwise keep opaque (255)
+  videoBuffer.loadPixels();
+  let keyR = red(keyColor);
+  let keyG = green(keyColor);
+  let keyB = blue(keyColor);
+  for (let i = 0; i < videoBuffer.pixels.length; i += 4) {
+    let r = videoBuffer.pixels[i + 0];
+    let g = videoBuffer.pixels[i + 1];
+    let b = videoBuffer.pixels[i + 2];
+    // 3D Euclidean distance in RGB space
+    let d = Math.sqrt((r - keyR) ** 2 + (g - keyG) ** 2 + (b - keyB) ** 2);
+    if (d > threshold) {
+      videoBuffer.pixels[i + 3] = 0;
+    } else {
+      videoBuffer.pixels[i + 3] = 255;
+    }
+  }
+  videoBuffer.updatePixels();
 }
 
 function displayValues() {
@@ -175,6 +219,6 @@ function boostSaturation(videoBuffer, saturationBoost) {
 function keyPressed() {
   if (key === "e" || key === "E") {
     saveCanvas("canvas", "png");
-    return false; // prevent default browser behavior
+    return false;
   }
 }
